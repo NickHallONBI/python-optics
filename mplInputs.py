@@ -14,7 +14,7 @@ import matplotlib.pyplot
 import matplotlib.backends.backend_qt4agg
 
 from geomopt import Lens, Pupil, Ray, zImage
-lenses = [Lens(100, 50), Pupil(100, 20), Lens(150, 50)]
+surfs = [Lens(100, 50), Pupil(100, 5), Lens(150, 50)]
 
 
 class MainWindow (QMainWindow):
@@ -38,46 +38,60 @@ class MainWindow (QMainWindow):
     inputsGrid = QGridLayout(inputs)
     inputsGrid.setSpacing(5)
 
-    label = QLabel('f', inputs)
-    inputsGrid.addWidget(label, 0, 0)
-    label = QLabel('dz', inputs)
-    inputsGrid.addWidget(label, 0, 1)
-
-    for i, lens in enumerate(lenses):
-      # focal length control
-      fInput = QSpinBox(inputs)
-      fInput.setRange(lens.f / 10, 9999)
-      fInput.setValue(lens.f)
+    for i, surf in enumerate(surfs):
+      if type(surf) is Lens:
+        pLabel = QLabel('f', inputs)
+        # focal length control
+        pInput = QSpinBox(inputs)
+        pInput.setRange(-10000, 10000)
+        pInput.setValue(surf.f)
+        # Use partial to call as ((self, target index, target parameter), new value)
+        pInput.valueChanged[int].connect(partial(self.set_model_parameter, i, 'f'))
+      elif type(surf) is Pupil:
+        pLabel = QLabel('r', inputs)
+        # radius control
+        pInput = QSpinBox(inputs)
+        pInput.setRange(1, 100)
+        pInput.setValue(surf.r)
+        # Use partial to call as ((self, target index, target parameter), new value)
+        pInput.valueChanged[int].connect(partial(self.set_model_parameter, i, 'r'))
+      else:
+        next
+        
       # position control
+      zLabel = QLabel('dz', inputs)
       zInput = QSpinBox(inputs)
-      zInput.setRange(lens.dz / 10, 9999)
-      zInput.setValue(lens.dz)
+      zInput.setRange(surf.dz / 10, 9999)
+      zInput.setValue(surf.dz)
       # Use partial to call as ((self, target index, target parameter), new value)
-      fInput.valueChanged[int].connect(partial(self.set_model_parameter, i, 'f'))
       zInput.valueChanged[int].connect(partial(self.set_model_parameter, i, 'dz'))
+      
       # Use partial to call as ((self, row number), new value)
-      fInput.valueChanged.connect(partial(self.replot_model, i))
+      pInput.valueChanged.connect(partial(self.replot_model, i))
       zInput.valueChanged.connect(partial(self.replot_model, i))
+
       # Add widgets to layout.
-      inputsGrid.addWidget(fInput, i+1, 0)
-      inputsGrid.addWidget(zInput, i+1, 1)
+      inputsGrid.addWidget(pLabel, i, 0)
+      inputsGrid.addWidget(pInput, i, 1)
+      inputsGrid.addWidget(zLabel, i, 2)
+      inputsGrid.addWidget(zInput, i, 3)
 
     # This stops elements been stretched over all available space. 
-    inputsGrid.setRowStretch(i + 2, 1)
-    inputsGrid.setColumnStretch(2, 1)
+    inputsGrid.setRowStretch(i + 1, 1)
+    inputsGrid.setColumnStretch(4, 1)
 
     dock.setWidget (inputs)
     #self.plot ()
 
 
   def set_model_parameter(self, index, parameter, value):
-      setattr(lenses[index], parameter, value)
+      setattr(surfs[index], parameter, value)
 
   def replot_model(self, n, value):
     if not self.rays or n == 0:
       numRays = 5
       height = 10.
-      tanThetas = numpy.arange(-height/lenses[0].dz, 0.01, (height/lenses[0].dz) / numRays)
+      tanThetas = numpy.arange(-height/surfs[0].dz, 0.01, (height/surfs[0].dz) / numRays)
       self.rays = [Ray(height, tanTheta) for tanTheta in tanThetas]
       self.rays.extend([Ray(0, tanTheta) for tanTheta in tanThetas])
 
@@ -87,25 +101,36 @@ class MainWindow (QMainWindow):
     max_radius = 0
     
     for ray in self.rays:
-      ray.propogate(lenses, start=n)
+      ray.propogate(surfs, start=n)
       ps = [(p.z, p.x) for p in ray.points]
-      xs, ys = zip(*ps)
-      self.drawing.plot(xs, ys, ray.colour)
-      max_radius = max(max_radius, max(ys))
+      us, vs = zip(*ps)
+      self.drawing.plot(us, vs, ray.colour)
+      max_radius = max(max_radius, max(vs))
 
     z = 0.
     r = max_radius
-    for lens in lenses:
-      z += lens.dz
-      f = lens.f
-      self.drawing.plot([z, z], [-r, r], 'k', linewidth=2)
-      self.drawing.plot([z-f, z-f], [-r, r], 'k', linewidth=1)
-      self.drawing.plot([z+f, z+f], [-r, r], 'k', linewidth=1)
+    lens_style = dict(head_width=max(us)/100.,
+                      head_length=r/10.,
+                      fc='k',
+                      ec='k')
+    for surf in surfs:
+      z += surf.dz
+      if type(surf) is Lens:
+        f = surf.f
+        self.drawing.arrow(z, 0, 0, 1.05*r, **lens_style)
+        self.drawing.arrow(z, 0, 0, -1.05*r, **lens_style)
+        #self.drawing.plot([z, z], [-r, r], 'k', linewidth=2)
+        self.drawing.plot([z+f, z+f], [-r/3., r/3.], 'k', linewidth=1)
+        if z - f > 0:
+            self.drawing.plot([z-f, z-f], [-r/3., r/3.], 'k', linewidth=1)
+      elif type(surf) is Pupil:
+        min_radius = surf.r
+        self.drawing.plot([z, z], [r, min_radius], 'k', linewidth=4)
+        self.drawing.plot([z, z], [-r, -min_radius], 'k', linewidth=4)
 
-    zImg = zImage(*self.rays[0:2])
-    print zImg
-
-    self.drawing.plot([zImg, zImg], [-r, r], 'r-')
+    zImg = zImage(*self.rays[-2:])
+    if zImg:
+        self.drawing.plot([zImg, zImg], [-r, r], 'r-')
 
     self.drawing.set_ylim(-r * 1.2, r * 1.2)
     self.canvas.draw ()

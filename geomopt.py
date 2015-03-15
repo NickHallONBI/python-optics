@@ -5,13 +5,19 @@ Point = namedtuple('Point', 'x, z, tanTheta')
 
 
 def zImage(rayA, rayB):
-    a = rayA.points[-2]
-    b = rayB.points[-2]
+    a = rayA.points[-1]
+    b = rayB.points[-1]
     
     if a.z != b.z:
         return None
     else:
-        return a.z + (b.x - a.x) / (a.tanTheta - b.tanTheta)
+        try: 
+            z = a.z + (b.x - a.x) / (a.tanTheta - b.tanTheta)
+        except ZeroDivisionError:
+            z = None
+        except:
+            raise
+        return z
 
 
 class Surface(object):
@@ -44,14 +50,13 @@ class Ray(object):
 
 
     def propogate(self, surfaces, start=0):
+        #start = 0
         if start >= len(self.points):
             start = len(self.points) - 1
         else:
             self.points = self.points[0:start + 1]
-        start = 0
 
-        #for i, surface in enumerate(surfaces[start:], start):
-        for i, surface in enumerate(surfaces):
+        for i, surface in enumerate(surfaces[start:], start):
             prevPoint = self.points[i]
             z = prevPoint.z + surface.dz
             x = prevPoint.x + (surface.dz * prevPoint.tanTheta)
@@ -65,11 +70,12 @@ class Ray(object):
             self.points.append(Point(x, z, tanTheta))
             
             if type(surface) is Pupil:
-                if x > surface.r:
-                    break
+                if abs(x) > surface.r:
+                    return
 
-        if type(surface) is Lens:
-            zFinal = z + 2. * surface.f
-        else:
-            zFinal = z + 0.1 * surface.dz
-        self.points.append(Point(x + (zFinal - z) * tanTheta, zFinal, tanTheta))
+        if i+1 == len(surfaces):
+            if type(surface) is Lens:
+                zFinal = z + 2. * surface.f
+            else:
+                zFinal = z + 0.1 * surface.dz
+            self.points.append(Point(x + (zFinal - z) * tanTheta, zFinal, tanTheta))
