@@ -1,0 +1,14 @@
+flange focal distances
+C-mount     17.526mm
+CS-mount    12.500mm
+
+
+Detectors
+AVT Manta G-125B GigE camera
+http://www.alliedvisiontec.com/us/products/cameras/gigabit-ethernet/manta/g-125bc.html
+    1292x964 Sony ICX445 detector
+    3.75 micron pixel size
+    type 1/3 sensor
+        6mm diagonal
+        4.80mm width
+        3.60mm height
