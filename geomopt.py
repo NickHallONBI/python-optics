@@ -75,7 +75,7 @@ class Ray(object):
 
         if i+1 == len(surfaces):
             if type(surface) is Lens:
-                zFinal = z + 2. * surface.f
+                zFinal = z + 2. * abs(surface.f)
             else:
-                zFinal = z + 0.1 * surface.dz
+                zFinal = z + 0.5 * surface.dz
             self.points.append(Point(x + (zFinal - z) * tanTheta, zFinal, tanTheta))
