@@ -1,5 +1,6 @@
 from math import pi
 import numpy as np
+from functools import reduce
 
 def rsum(*args):
     """Return harmonic sum of reciprocals of args."""
@@ -74,7 +75,10 @@ def docalc():
 
 
 # UI
-from tkinter import *
+try:
+    from Tkinter import *
+except:
+    from tkinter import *
 s = 1.
 width = 500
 
