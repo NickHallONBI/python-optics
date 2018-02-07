@@ -88,6 +88,8 @@ w.pack()
 
 def draw(obj, rect=False, **kwargs):
     x0, y0, r, theta, col = obj
+    if 'width' not in kwargs:
+        kwargs['width'] = 2.0
     theta += pi/4
     rotate = np.array([[np.cos(theta), np.sin(theta), 0], 
                          [-np.sin(theta), np.cos(theta), 0],
@@ -104,9 +106,9 @@ def draw(obj, rect=False, **kwargs):
 def keypress(evt):
     global dobj, dref
     if evt.keysym == "Up":
-        dref += 1
-    elif evt.keysym == "Down":
         dref -= 1
+    elif evt.keysym == "Down":
+        dref += 1
     elif evt.keysym == "Left":
         dobj -= 1
     elif evt.keysym == "Right":
